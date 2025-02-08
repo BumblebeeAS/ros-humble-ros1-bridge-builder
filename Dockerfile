@@ -98,10 +98,14 @@ ARG ADD_grid_map=0
 # for a custom message example
 ARG ADD_example_custom_msgs=0
 
+# for a custom message example
+ARG ADD_bb_msgs=1
+
 # sanity check:
 RUN echo "ADD_ros_tutorials         = '$ADD_ros_tutorials'"
 RUN echo "ADD_grid_map              = '$ADD_grid_map'"
 RUN echo "ADD_example_custom_msgs   = '$ADD_example_custom_msgs'"
+RUN echo "ADD_bb_msgs               = '$ADD_bb_msgs'"
 
 ###########################
 # 6.1) Add additional ros_tutorials messages and services
@@ -180,6 +184,24 @@ RUN if [[ "$ADD_example_custom_msgs" = "1" ]]; then                     \
       time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
     fi
 
+COPY ros_bridge_ws /ros_bridge_ws
+RUN if [[ "$ADD_bb_msgs" = "1" ]]; then                     \
+      # Compile ROS1:                                                   \
+      cd /ros_bridge_ws/ros1/src/bb_msgs/bb_auv_msgs;                   \
+      unset ROS_DISTRO;                                                 \
+      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
+      cd /ros_bridge_ws/ros1/src/bb_msgs/bb_controls_msgs;              \
+      unset ROS_DISTRO;                                                 \
+      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
+      # Compile ROS2:                                                   \
+      cd /ros_bridge_ws/ros2/src/bb_msgs/bb_auv_msgs;                   \
+      source /opt/ros/humble/setup.bash;                                \
+      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
+      cd /ros_bridge_ws/ros2/src/bb_msgs/bb_controls_msgs;              \
+      source /opt/ros/humble/setup.bash;                                \
+      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
+fi
+
 ###########################
 # 7.) Compile ros1_bridge
 ###########################
@@ -213,6 +235,16 @@ RUN                                                                             
       source /custom_msgs/custom_msgs_ros1/install/setup.bash;                  \
       # Apply ROS2 package overlay                                              \
       source /custom_msgs/custom_msgs_ros2/install/setup.bash;                  \
+    fi;                                                                         \
+    #                                                                           \
+    CUSTOM_MSGS_DIRS=("bb_auv_msgs" "bb_controls_msgs");                        \
+    if [[ "$ADD_bb_msgs" = "1" ]]; then                                         \
+      for dir in "${CUSTOM_MSGS_DIRS[@]}"; do                                   \
+        # Apply ROS1 package overlay                                            \
+        source /ros_bridge_ws/ros1/src/bb_msgs/$dir/install/setup.bash;         \
+        # Apply ROS2 package overlay                                            \
+        source /ros_bridge_ws/ros2/src/bb_msgs/$dir/install/setup.bash;         \
+      done;                                                                     \
     fi;                                                                         \
     #                                                                           \
     #-------------------------------------                                      \
