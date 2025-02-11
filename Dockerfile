@@ -107,6 +107,8 @@ RUN echo "ADD_grid_map              = '$ADD_grid_map'"
 RUN echo "ADD_example_custom_msgs   = '$ADD_example_custom_msgs'"
 RUN echo "ADD_bb_msgs               = '$ADD_bb_msgs'"
 
+ARG CUSTOM_MSGS_DIRS="bb_auv_msgs bb_controls_msgs bb_sensor_msgs"
+
 ###########################
 # 6.1) Add additional ros_tutorials messages and services
 # eg., See AddTwoInts server and client tutorial
@@ -185,22 +187,20 @@ RUN if [[ "$ADD_example_custom_msgs" = "1" ]]; then                     \
     fi
 
 COPY ros_bridge_ws /ros_bridge_ws
-RUN if [[ "$ADD_bb_msgs" = "1" ]]; then                     \
+RUN if [[ "$ADD_bb_msgs" = "1" ]]; then                                 \
       # Compile ROS1:                                                   \
-      cd /ros_bridge_ws/ros1/src/bb_msgs/bb_auv_msgs;                   \
-      unset ROS_DISTRO;                                                 \
-      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
-      cd /ros_bridge_ws/ros1/src/bb_msgs/bb_controls_msgs;              \
-      unset ROS_DISTRO;                                                 \
-      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
+      for dir in $CUSTOM_MSGS_DIRS; do                                  \
+        cd /ros_bridge_ws/ros1/src/bb_msgs/$dir;                        \
+        unset ROS_DISTRO;                                               \
+        time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;      \
+      done ;                                                            \
       # Compile ROS2:                                                   \
-      cd /ros_bridge_ws/ros2/src/bb_msgs/bb_auv_msgs;                   \
-      source /opt/ros/humble/setup.bash;                                \
-      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
-      cd /ros_bridge_ws/ros2/src/bb_msgs/bb_controls_msgs;              \
-      source /opt/ros/humble/setup.bash;                                \
-      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
-fi
+      for dir in $CUSTOM_MSGS_DIRS; do                                  \
+        cd /ros_bridge_ws/ros2/src/bb_msgs/$dir;                        \
+        source /opt/ros/humble/setup.bash;                              \
+        time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;      \
+      done ;                                                            \
+    fi
 
 ###########################
 # 7.) Compile ros1_bridge
@@ -237,9 +237,8 @@ RUN                                                                             
       source /custom_msgs/custom_msgs_ros2/install/setup.bash;                  \
     fi;                                                                         \
     #                                                                           \
-    CUSTOM_MSGS_DIRS=("bb_auv_msgs" "bb_controls_msgs");                        \
     if [[ "$ADD_bb_msgs" = "1" ]]; then                                         \
-      for dir in "${CUSTOM_MSGS_DIRS[@]}"; do                                   \
+      for dir in $CUSTOM_MSGS_DIRS; do                                          \
         # Apply ROS1 package overlay                                            \
         source /ros_bridge_ws/ros1/src/bb_msgs/$dir/install/setup.bash;         \
         # Apply ROS2 package overlay                                            \
